@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="#3a3a3a"
+    android:padding="12dp"
+    android:layout_marginBottom="4dp">
+
+    <!-- 玩家头像 -->
+    <TextView
+        android:id="@+id/tv_player_avatar"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:text="🐍"
+        android:textSize="24sp"
+        android:gravity="center"
+        android:background="#4CAF50"
+        android:layout_marginRight="12dp" />
+
+    <!-- 玩家信息 -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_player_nickname"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="玩家昵称"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/tv_player_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="准备中"
+            android:textColor="#CCCCCC"
+            android:textSize="12sp" />
+
+    </LinearLayout>
+
+    <!-- 房主标识 -->
+    <TextView
+        android:id="@+id/tv_host_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="房主"
+        android:textColor="#FFFFFF"
+        android:textSize="12sp"
+        android:background="#FF9800"
+        android:padding="4dp"
+        android:visibility="gone" />
+
+</LinearLayout>

@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:background="#1a1a1a"
+    android:gravity="center"
+    android:padding="24dp">
+
+    <!-- 左侧：标题和说明 -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⚙️ 用户设置"
+            android:textSize="28sp"
+            android:textColor="#9C27B0"
+            android:layout_marginBottom="16dp"
+            android:gravity="center" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="在这里可以修改你的个人信息"
+            android:textSize="16sp"
+            android:textColor="#CCCCCC"
+            android:gravity="center" />
+
+    </LinearLayout>
+
+    <!-- 右侧：设置表单 -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:background="#2a2a2a"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="昵称设置"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:layout_marginBottom="16dp"
+            android:gravity="center"
+            android:layout_gravity="center" />
+
+        <!-- 当前昵称显示 -->
+        <TextView
+            android:id="@+id/tv_current_nickname"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="当前昵称：玩家"
+            android:textColor="#4CAF50"
+            android:textSize="16sp"
+            android:layout_marginBottom="16dp"
+            android:layout_gravity="center" />
+
+        <!-- 新昵称输入 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="新昵称："
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp" />
+
+        <EditText
+            android:id="@+id/et_new_nickname"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:hint="请输入新昵称（2-12字符）"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#CCCCCC"
+            android:background="#3a3a3a"
+            android:padding="8dp"
+            android:textSize="14sp"
+            android:maxLength="12"
+            android:layout_marginBottom="16dp" />
+
+        <!-- 更新昵称按钮 -->
+        <Button
+            android:id="@+id/btn_update_nickname"
+            android:layout_width="match_parent"
+            android:layout_height="45dp"
+            android:text="更新昵称"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:background="#9C27B0"
+            android:layout_marginBottom="12dp" />
+
+        <!-- 返回按钮 -->
+        <Button
+            android:id="@+id/btn_back"
+            android:layout_width="match_parent"
+            android:layout_height="45dp"
+            android:text="返回主页"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:background="#757575" />
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#1a1a1a"
+    android:gravity="center"
+    android:padding="32dp">
+
+    <!-- 游戏标题 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🐍 贪吃蛇大作战 🐍"
+        android:textSize="36sp"
+        android:textColor="#4CAF50"
+        android:layout_marginBottom="48dp"
+        android:gravity="center" />
+
+    <!-- 昵称输入 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#2a2a2a"
+        android:padding="24dp"
+        android:layout_marginBottom="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="输入你的昵称"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:layout_marginBottom="16dp"
+            android:layout_gravity="center" />
+
+        <EditText
+            android:id="@+id/et_nickname"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:hint="请输入昵称"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#CCCCCC"
+            android:background="#3a3a3a"
+            android:padding="12dp"
+            android:layout_marginBottom="24dp" />
+
+        <!-- 颜色选择器 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="选择你的颜色"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:layout_marginBottom="16dp"
+            android:layout_gravity="center" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_gravity="center"
+            android:layout_marginBottom="24dp">
+
+            <View
+                android:id="@+id/color_red"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:background="#FF0000"
+                android:layout_margin="8dp"
+                android:clickable="true" />
+
+            <View
+                android:id="@+id/color_green"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:background="#00FF00"
+                android:layout_margin="8dp"
+                android:clickable="true" />
+
+            <View
+                android:id="@+id/color_blue"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:background="#0000FF"
+                android:layout_margin="8dp"
+                android:clickable="true" />
+
+            <View
+                android:id="@+id/color_yellow"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:background="#FFFF00"
+                android:layout_margin="8dp"
+                android:clickable="true" />
+
+            <View
+                android:id="@+id/color_purple"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:background="#FF00FF"
+                android:layout_margin="8dp"
+                android:clickable="true" />
+
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btn_start_game"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="开始游戏"
+            android:textColor="#FFFFFF"
+            android:background="#4CAF50" />
+
+    </LinearLayout>
+
+</LinearLayout>

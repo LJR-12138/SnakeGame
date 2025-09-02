@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp"
+    android:background="@android:color/transparent">
+
+    <!-- 上方向键 -->
+    <Button
+        android:id="@+id/btn_up"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:minWidth="65dp"
+        android:minHeight="65dp"
+        android:text="↑"
+        android:textColor="#FFFFFF"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:background="@drawable/direction_button_bg"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="4dp"
+        android:padding="0dp" />
+
+    <!-- 中间行：左和右 -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_gravity="center_horizontal">
+
+        <!-- 左方向键 -->
+        <Button
+            android:id="@+id/btn_left"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:minWidth="65dp"
+            android:minHeight="65dp"
+            android:text="←"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:background="@drawable/direction_button_bg"
+            android:layout_marginRight="56dp"
+            android:padding="0dp" />
+
+        <!-- 右方向键 -->
+        <Button
+            android:id="@+id/btn_right"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:minWidth="65dp"
+            android:minHeight="65dp"
+            android:text="→"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:background="@drawable/direction_button_bg"
+            android:padding="0dp" />
+
+    </LinearLayout>
+
+    <!-- 下方向键 -->
+    <Button
+        android:id="@+id/btn_down"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:minWidth="65dp"
+        android:minHeight="65dp"
+        android:text="↓"
+        android:textColor="#FFFFFF"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:background="@drawable/direction_button_bg"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="4dp"
+        android:padding="0dp" />
+
+</LinearLayout>

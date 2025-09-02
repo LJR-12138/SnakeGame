@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- 按下状态：游戏绿色高亮 -->
+    <item android:state_pressed="true">
+        <shape android:shape="oval">
+            <gradient
+                android:startColor="#81C784"
+                android:endColor="#4CAF50"
+                android:type="radial"
+                android:gradientRadius="36dp" />
+            <stroke 
+                android:width="3dp"
+                android:color="#2E7D32" />
+            <size 
+                android:width="72dp"
+                android:height="72dp" />
+        </shape>
+    </item>
+    
+    <!-- 正常状态：半透明游戏风格 -->
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:startColor="#90E8F5E8"
+                android:endColor="#70C8E6C8"
+                android:type="radial"
+                android:gradientRadius="36dp" />
+            <stroke 
+                android:width="2dp"
+                android:color="#81C784" />
+            <size 
+                android:width="72dp"
+                android:height="72dp" />
+        </shape>
+    </item>
+    
+</selector>

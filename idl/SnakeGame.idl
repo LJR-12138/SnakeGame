@@ -1,0 +1,105 @@
+module SnakeGame{
+
+    // 登录、认证
+    struct PlayerAuth {
+        long player_id;
+        string nickname;
+        string password;   // 或 token
+        string auth_type;    // "REGISTER" 或 "LOGIN"
+    };
+// 高频操作用
+struct PlayerMove {
+    long player_id;
+    string direction;  // "UP", "DOWN", "LEFT", "RIGHT"
+    long timestamp;
+};
+
+// 游戏状态（后台 -> 前端）
+struct GameState {
+    long player_id;
+    sequence<long> snake_x;   // 蛇身体每个节点的X坐标
+    sequence<long> snake_y;   // 蛇身体每个节点的Y坐标
+    long length;              // 蛇长度
+    long score;               // 分数
+};
+
+
+
+// 系统消息（双向）
+struct SystemMsg {
+    string msg_type;          // "JOIN", "EXIT", "START", "END"
+    string content;           // 消息内容
+    long timestamp;
+};
+
+// 玩家信息（前端 -> 后台）
+struct PlayerInfo {
+    long player_id;
+    string nickname;
+    string color;             // 蛇颜色
+};
+
+// 排行榜（后台 -> 前端）
+struct LeaderboardEntry {
+    long player_id;
+    string nickname;
+    long score;
+};
+struct Leaderboard {
+    sequence<LeaderboardEntry> entries;
+};
+
+// 道具类型枚举（只涉及长度变化）
+enum ItemType {
+    APPLE,
+    GOOD_FOOD, // 吃掉蛇长度 +2
+    BAD_FOOD   // 吃掉蛇长度 -1
+};
+
+// 食物+道具结构体
+struct Item {
+    long item_id;      // 食物、道具唯一ID
+    ItemType item_type; // 类型
+    long x;            // X坐标
+    long y;            // Y坐标
+    string image_id;    // 图片资源ID， "apple", "good", "bad"
+    };
+
+// 碰撞事件（后台 -> 前端）
+struct Collision {
+    sequence<long> player_ids;
+    sequence<boolean> collisions;
+};
+//（后台 -> 前端）
+struct GetFood {
+        long player_id;
+        long item_id;      // 道具唯一ID
+        ItemType item_type; // 道具类型
+        long x;            // X坐标
+        long y;            // Y坐标
+    };
+
+// 游戏设置（后台 -> 前端）
+struct GameSetting {
+    long speed;               // 游戏速度
+    long grid_size;           // 网格大小
+};
+
+// 聊天消息（双向）
+struct ChatMsg {
+    long player_id;
+    string content;
+    long timestamp;
+};
+
+// 房间号（双向）
+struct InRoom {
+    string room_id;
+    long player_id;
+    string player_nickname;
+    sequence<long> player_ids;
+    sequence<string> player_nicknames;
+    string room_state;//"waiting","playing","empty"
+};
+
+};
