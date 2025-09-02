@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
@@ -16,14 +17,11 @@ import java.util.List;
 
 public class GameSurfaceView extends SurfaceView implements SurfaceHolder.Callback {
     
-    // 添加缺失的常量
-    public static final int APPLE = 1;
-    public static final int GOOD_FOOD = 2;
-    public static final int BAD_FOOD = 3;
-    
     private SurfaceHolder surfaceHolder;
     private Paint paint;
     private GameWorld gameWorld;
+    
+    // 移除图片资源，使用代码绘制
     
     // 游戏区域配置
     private int gridCols; // 列数
@@ -58,68 +56,21 @@ public class GameSurfaceView extends SurfaceView implements SurfaceHolder.Callba
         paint = new Paint();
         paint.setAntiAlias(true);
         paint.setStyle(Paint.Style.FILL);
+        
+        // 不再加载图片，使用代码绘制
     }
+    
+    // 移除图片加载方法，使用代码绘制
     
     public void updateGameWorld(GameWorld gameWorld) {
-    this.gameWorld = gameWorld;
-    calculateGridLayout();
-    
-    // 简化判断逻辑，确保能够正常重绘
-    if (shouldRedraw(gameWorld)) {
+        this.gameWorld = gameWorld;
+        calculateGridLayout();
+        
+        // 直接绘制，不使用动画
         draw();
+        
         this.lastGameWorld = gameWorld;
     }
-    }
-
-    private boolean shouldRedraw(GameWorld newGameWorld) {
-    // 第一次绘制
-    if (lastGameWorld == null) return true;
-    
-    // 游戏状态改变
-    if (newGameWorld.isGameRunning() != lastGameWorld.isGameRunning()) return true;
-    
-    // 视野改变
-    if (newGameWorld.getViewOffsetX() != lastGameWorld.getViewOffsetX() ||
-        newGameWorld.getViewOffsetY() != lastGameWorld.getViewOffsetY()) return true;
-    
-    // 蛇的身体点数量改变（吃食物或移动）
-    if (newGameWorld.getMySnake() != null && lastGameWorld.getMySnake() != null) {
-        if (newGameWorld.getMySnake().getBodyPoints().size() != 
-            lastGameWorld.getMySnake().getBodyPoints().size()) return true;
-    }
-    
-    // 食物数量改变
-    if (newGameWorld.getFoods() != null && lastGameWorld.getFoods() != null) {
-        if (newGameWorld.getFoods().size() != lastGameWorld.getFoods().size()) return true;
-    }
-    
-    // 默认重绘，确保不会卡住
-    return true;
-}
-
-    // 检查是否有重要变化
-    // 修改hasSignificantChange方法
-private boolean hasSignificantChange(GameWorld newGameWorld) {
-    if (lastGameWorld == null) return true;
-    
-    // 检查视野是否改变
-    if (lastGameWorld.getViewOffsetX() != newGameWorld.getViewOffsetX() ||
-        lastGameWorld.getViewOffsetY() != newGameWorld.getViewOffsetY()) {
-        return true;
-    }
-    
-    // 检查蛇的位置是否改变
-    if (newGameWorld.getMySnake() != null && lastGameWorld.getMySnake() != null) {
-        Point newHead = getSnakeHead(newGameWorld.getMySnake());  // 现在这个方法存在了
-        Point oldHead = getSnakeHead(lastGameWorld.getMySnake());
-        if (newHead != null && oldHead != null && 
-            (!newHead.equals(oldHead))) {
-            return true;
-        }
-    }
-    
-    return false;
-}
     
     private void calculateGridLayout() {
         if (gameWorld == null || getWidth() == 0 || getHeight() == 0) return;
@@ -264,29 +215,74 @@ private boolean hasSignificantChange(GameWorld newGameWorld) {
                 // 转换为视野坐标
                 Point viewPos = gameWorld.worldToViewport(worldPos);
                 
-                // 根据食物类型设置颜色
-                switch (food.getType()) {
-                    case "normal":
-                        paint.setColor(Color.RED);
-                        break;
-                    case "good":
-                        paint.setColor(Color.GREEN);
-                        break;
-                    case "bad":
-                        paint.setColor(Color.YELLOW);
-                        break;
-                    default:
-                        paint.setColor(Color.RED);
-                        break;
-                }
-                
-                // 使用视野坐标绘制圆形食物
                 float centerX = offsetX + viewPos.getX() * cellSize + cellSize / 2f;
                 float centerY = offsetY + viewPos.getY() * cellSize + cellSize / 2f;
-                float radius = cellSize / 3f;
-                canvas.drawCircle(centerX, centerY, radius, paint);
+                
+                // 根据食物类型绘制不同的形状
+                switch (food.getType()) {
+                    case APPLE:
+                        // 红色圆形苹果
+                        paint.setColor(Color.parseColor("#FF4444"));
+                        float appleRadius = cellSize / 3f;
+                        canvas.drawCircle(centerX, centerY, appleRadius, paint);
+                        
+                        // 绘制苹果的叶子（绿色小矩形）
+                        paint.setColor(Color.parseColor("#4CAF50"));
+                        float leafSize = cellSize / 8f;
+                        canvas.drawRect(centerX - leafSize/2, centerY - appleRadius - leafSize, 
+                                       centerX + leafSize/2, centerY - appleRadius, paint);
+                        break;
+                        
+                    case GOOD_FOOD:
+                        // 金色五角星
+                        paint.setColor(Color.parseColor("#FFD700"));
+                        drawStar(canvas, centerX, centerY, cellSize / 3f, paint);
+                        break;
+                        
+                    case BAD_FOOD:
+                        // 紫色骷髅头
+                        paint.setColor(Color.parseColor("#9C27B0"));
+                        float skullRadius = cellSize / 3f;
+                        canvas.drawCircle(centerX, centerY, skullRadius, paint);
+                        
+                        // 绘制眼睛
+                        paint.setColor(Color.BLACK);
+                        float eyeRadius = cellSize / 12f;
+                        canvas.drawCircle(centerX - skullRadius/2, centerY - skullRadius/3, eyeRadius, paint);
+                        canvas.drawCircle(centerX + skullRadius/2, centerY - skullRadius/3, eyeRadius, paint);
+                        
+                        // 绘制嘴巴
+                        canvas.drawRect(centerX - skullRadius/3, centerY + skullRadius/4, 
+                                       centerX + skullRadius/3, centerY + skullRadius/2, paint);
+                        break;
+                }
             }
         }
+    }
+    
+    // 绘制五角星的辅助方法
+    private void drawStar(Canvas canvas, float centerX, float centerY, float radius, Paint paint) {
+        paint.setAntiAlias(true);
+        
+        // 简化的星星绘制：绘制一个实心五角星
+        Path starPath = new Path();
+        
+        // 计算五个外部点和五个内部点
+        for (int i = 0; i < 10; i++) {
+            double angle = Math.PI * i / 5.0;
+            float r = (i % 2 == 0) ? radius : radius * 0.5f;
+            float x = centerX + (float)(r * Math.cos(angle - Math.PI / 2));
+            float y = centerY + (float)(r * Math.sin(angle - Math.PI / 2));
+            
+            if (i == 0) {
+                starPath.moveTo(x, y);
+            } else {
+                starPath.lineTo(x, y);
+            }
+        }
+        starPath.close();
+        
+        canvas.drawPath(starPath, paint);
     }
     
     private void drawSnake(Canvas canvas, Snake snake, boolean isMySnake) {
@@ -297,39 +293,109 @@ private boolean hasSignificantChange(GameWorld newGameWorld) {
         for (int i = 0; i < bodyPoints.size(); i++) {
             Point worldPoint = bodyPoints.get(i);
             
-            // 只绘制在视野内的蛇身体部分
+            // 只绘制在视野内的部分
             if (gameWorld.isInViewport(worldPoint)) {
-                Point viewPoint = gameWorld.worldToViewport(worldPoint);
-                
-                if (i == 0) {
-                    // 绘制蛇头
-                    paint.setColor(Color.parseColor(snake.getColor()));
-                    canvas.drawRect(
-                        offsetX + viewPoint.getX() * cellSize + 2,
-                        offsetY + viewPoint.getY() * cellSize + 2,
-                        offsetX + (viewPoint.getX() + 1) * cellSize - 2,
-                        offsetY + (viewPoint.getY() + 1) * cellSize - 2,
-                        paint
-                    );
-                } else {
-                    // 绘制蛇身
-                    paint.setColor(Color.parseColor(snake.getColor()));
-                    if (isMySnake) {
-                        paint.setAlpha(180);
-                    } else {
-                        paint.setAlpha(150);
-                    }
-                    
-                    canvas.drawRect(
-                        offsetX + viewPoint.getX() * cellSize + 4,
-                        offsetY + viewPoint.getY() * cellSize + 4,
-                        offsetX + (viewPoint.getX() + 1) * cellSize - 4,
-                        offsetY + (viewPoint.getY() + 1) * cellSize - 4,
-                        paint
-                    );
-                    paint.setAlpha(255);
-                }
+                drawSnakeSegment(canvas, worldPoint, snake.getColor(), i == 0, isMySnake, worldPoint.getX(), worldPoint.getY());
             }
+        }
+    }
+    
+    // 专门为动画蛇头设计的绘制方法，直接使用浮点坐标
+    private void drawSnakeSegmentWithFloatCoords(Canvas canvas, float worldX, float worldY, String color, boolean isHead, boolean isMySnake) {
+        // 转换为视野坐标（浮点数）
+        float viewX = worldX - gameWorld.getViewOffsetX();
+        float viewY = worldY - gameWorld.getViewOffsetY();
+        
+        // 检查是否在视野范围内
+        if (viewX < -1 || viewX > gridCols || viewY < -1 || viewY > gridRows) {
+            return; // 超出视野范围，不绘制
+        }
+        
+        // 计算精确的像素位置
+        float pixelX = offsetX + viewX * cellSize;
+        float pixelY = offsetY + viewY * cellSize;
+        
+        if (isHead) {
+            // 绘制蛇头 - 使用抗锯齿
+            paint.setColor(Color.parseColor(color));
+            paint.setAlpha(255);
+            paint.setAntiAlias(true);
+            canvas.drawRoundRect(
+                pixelX + 1,
+                pixelY + 1,
+                pixelX + cellSize - 1,
+                pixelY + cellSize - 1,
+                cellSize * 0.2f, cellSize * 0.2f,
+                paint
+            );
+        } else {
+            // 绘制蛇身
+            paint.setColor(Color.parseColor(color));
+            if (isMySnake) {
+                paint.setAlpha(180);
+            } else {
+                paint.setAlpha(150);
+            }
+            paint.setAntiAlias(true);
+            
+            canvas.drawRoundRect(
+                pixelX + 3,
+                pixelY + 3,
+                pixelX + cellSize - 3,
+                pixelY + cellSize - 3,
+                cellSize * 0.15f, cellSize * 0.15f,
+                paint
+            );
+            paint.setAlpha(255);
+        }
+    }
+
+    private void drawSnakeSegment(Canvas canvas, Point worldPoint, String color, boolean isHead, boolean isMySnake, float actualX, float actualY) {
+        Point viewPoint = gameWorld.worldToViewport(worldPoint);
+        
+        // 计算精确的像素位置，减少浮点误差
+        float baseX = offsetX + viewPoint.getX() * cellSize;
+        float baseY = offsetY + viewPoint.getY() * cellSize;
+        
+        // 应用亚像素偏移
+        float offsetDiffX = (actualX - worldPoint.getX()) * cellSize;
+        float offsetDiffY = (actualY - worldPoint.getY()) * cellSize;
+        
+        float pixelX = baseX + offsetDiffX;
+        float pixelY = baseY + offsetDiffY;
+        
+        if (isHead) {
+            // 绘制蛇头 - 使用抗锯齿
+            paint.setColor(Color.parseColor(color));
+            paint.setAlpha(255);
+            paint.setAntiAlias(true);
+            canvas.drawRoundRect(
+                pixelX + 1,
+                pixelY + 1,
+                pixelX + cellSize - 1,
+                pixelY + cellSize - 1,
+                cellSize * 0.2f, cellSize * 0.2f,
+                paint
+            );
+        } else {
+            // 绘制蛇身
+            paint.setColor(Color.parseColor(color));
+            if (isMySnake) {
+                paint.setAlpha(180);
+            } else {
+                paint.setAlpha(150);
+            }
+            paint.setAntiAlias(true);
+            
+            canvas.drawRoundRect(
+                pixelX + 3,
+                pixelY + 3,
+                pixelX + cellSize - 3,
+                pixelY + cellSize - 3,
+                cellSize * 0.15f, cellSize * 0.15f,
+                paint
+            );
+            paint.setAlpha(255);
         }
     }
     
@@ -371,15 +437,10 @@ private boolean hasSignificantChange(GameWorld newGameWorld) {
     
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-        // Surface销毁时的处理
+        // Surface销毁时的处理，无需清理图片资源
     }
-
-
-    // 在GameSurfaceView类中添加getSnakeHead方法
-private Point getSnakeHead(Snake snake) {
-    if (snake != null && snake.getBodyPoints() != null && !snake.getBodyPoints().isEmpty()) {
-        return snake.getBodyPoints().get(0);
+    
+    private void cleanupResources() {
+        // 移除图片资源清理，改为代码绘制
     }
-    return null;
-}
 }

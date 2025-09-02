@@ -62,7 +62,7 @@ public class HomeActivity extends AppCompatActivity {
         btnSingleGame.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // 保持原有的单人游戏逻辑
+                // 启动定时积分赛游戏
                 startActivity(new Intent(HomeActivity.this, MainActivity.class));
             }
         });

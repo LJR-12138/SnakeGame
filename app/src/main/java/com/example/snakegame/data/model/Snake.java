@@ -12,6 +12,7 @@ public class Snake {
     private List<Point> bodyPoints;
     private String direction;
     private boolean growing; // 添加这个字段
+    private int growthPending = 0; // 待增长的节数
         // 在Snake类中添加这个字段和方法
     private boolean justAte = false;
     
@@ -87,11 +88,21 @@ public class Snake {
     }
     
     public boolean isGrowing() {
-        return growing;
+        return growing || growthPending > 0;
     }
     
     public void setGrowing(boolean growing) {
         this.growing = growing;
+    }
+    
+    public int getGrowthPending() {
+        return growthPending;
+    }
+    
+    public void decreaseGrowthPending() {
+        if (growthPending > 0) {
+            growthPending--;
+        }
     }
     
     // 获取蛇头位置
@@ -104,6 +115,19 @@ public class Snake {
     
     // 蛇生长（吃到食物时调用）
     public void grow() {
-        this.growing = true;
+        this.growthPending++;
+    }
+    
+    // 蛇身体减少（吃到坏食物时调用）
+    public void shrink() {
+        if (bodyPoints != null && bodyPoints.size() > 1) {
+            // 移除尾部节点，但至少保留蛇头
+            bodyPoints.remove(bodyPoints.size() - 1);
+        }
+    }
+    
+    // 蛇身体增长指定数量
+    public void growByAmount(int amount) {
+        this.growthPending += amount;
     }
 }

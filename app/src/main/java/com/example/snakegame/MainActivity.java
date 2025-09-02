@@ -1,6 +1,8 @@
 package com.example.snakegame;
 
+import android.app.AlertDialog;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -14,15 +16,19 @@ import com.example.snakegame.data.model.Player;
 import com.example.snakegame.presentation.contract.GameContract;
 import com.example.snakegame.presentation.presenter.GamePresenter;
 import com.example.snakegame.ui.view.GameSurfaceView;
+import com.example.snakegame.network.RoomServer;
+import com.example.snakegame.network.RoomClient;
+import com.example.snakegame.network.NetworkMessage;
 import java.util.List;
 import java.util.Set;
 import java.util.HashSet;
 
-public class MainActivity extends AppCompatActivity implements GameContract.View {
+public class MainActivity extends AppCompatActivity implements GameContract.View, RoomServer.RoomServerListener, RoomClient.RoomClientListener {
     
     private GamePresenter presenter;
     private GameSurfaceView gameSurfaceView;
     private TextView tvScore;
+    private TextView tvTime;
     private TextView tvLeaderboard;
     private TextView tvGameStatus;
     private LinearLayout controlPanel;
@@ -37,6 +43,15 @@ public class MainActivity extends AppCompatActivity implements GameContract.View
     private GestureDetector gestureDetector;
     private boolean gameStarted = false;
     
+    // 多人模式相关
+    private boolean isMultiplayer = false;
+    private boolean isHost = false;
+    private String roomId;
+    private String playerId;
+    private int playerCount;
+    private RoomServer roomServer;
+    private RoomClient roomClient;
+    
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -45,6 +60,19 @@ public class MainActivity extends AppCompatActivity implements GameContract.View
         // 获取登录传入的参数
         playerNickname = getIntent().getStringExtra("nickname");
         playerColor = getIntent().getStringExtra("color");
+        
+        // 获取多人模式参数
+        isMultiplayer = getIntent().getBooleanExtra("isMultiplayer", false);
+        roomId = getIntent().getStringExtra("roomId");
+        playerCount = getIntent().getIntExtra("playerCount", 1);
+        isHost = getIntent().getBooleanExtra("isHost", false);
+        playerId = getIntent().getStringExtra("playerId");
+        
+        // 如果是多人模式但没有传入playerNickname，从Intent获取
+        if (isMultiplayer && playerNickname == null) {
+            playerNickname = getIntent().getStringExtra("playerNickname");
+        }
+        
         if (playerNickname == null) playerNickname = "Player1";
         if (playerColor == null) playerColor = "#FF0000";
         
@@ -53,13 +81,35 @@ public class MainActivity extends AppCompatActivity implements GameContract.View
         setupGestureDetector();
         setupDirectionControls();
         
-        // 显示开始游戏提示
-        showStartGamePrompt();
+        if (isMultiplayer) {
+            // 多人模式：恢复网络连接
+            restoreNetworkConnection();
+            Toast.makeText(this, "多人游戏模式 - 房间: " + roomId, Toast.LENGTH_SHORT).show();
+            
+            // 如果是房主且连接成功，延迟启动游戏
+            if (isHost && isMultiplayer) {
+                showMultiplayerGamePrompt();
+                // 延迟3秒后自动开始游戏
+                new Handler().postDelayed(() -> {
+                    if (!gameStarted) {
+                        startGame();
+                    }
+                }, 3000);
+            } else if (isMultiplayer) {
+                showMultiplayerGamePrompt();
+                // 客户端等待连接成功后自动开始
+            }
+            // 如果isMultiplayer被设为false，说明连接失败，已经在restoreNetworkConnection中处理了
+        } else {
+            // 单人模式：显示开始游戏提示
+            showStartGamePrompt();
+        }
     }
     
     private void initViews() {
         gameSurfaceView = findViewById(R.id.game_surface_view);
         tvScore = findViewById(R.id.tv_score);
+        tvTime = findViewById(R.id.tv_time);
         tvLeaderboard = findViewById(R.id.tv_leaderboard);
         tvGameStatus = findViewById(R.id.tv_game_status);
         controlPanel = findViewById(R.id.control_panel);
@@ -71,6 +121,9 @@ public class MainActivity extends AppCompatActivity implements GameContract.View
         btnLeft = findViewById(R.id.btn_left);
         btnRight = findViewById(R.id.btn_right);
         directionControls = findViewById(R.id.direction_controls);
+        
+        // 始终显示时间（定时积分赛模式）
+        tvTime.setVisibility(View.VISIBLE);
     }
     
     private void initPresenter() {
@@ -142,7 +195,16 @@ public class MainActivity extends AppCompatActivity implements GameContract.View
     }
     
     private void showStartGamePrompt() {
-        tvGameStatus.setText("点击屏幕开始游戏");
+        tvGameStatus.setText("定时积分赛 - 5分钟挑战\n点击屏幕开始游戏");
+        tvGameStatus.setVisibility(View.VISIBLE);
+        tvScore.setText("Score: 0");
+        tvLeaderboard.setText("等待开始...");
+        gameStarted = false;
+    }
+    
+    private void showMultiplayerGamePrompt() {
+        String roleText = isHost ? "房主" : "玩家";
+        tvGameStatus.setText("多人定时积分赛 - 5分钟挑战\n" + roleText + " - 房间: " + roomId + "\n游戏即将开始...");
         tvGameStatus.setVisibility(View.VISIBLE);
         tvScore.setText("Score: 0");
         tvLeaderboard.setText("等待开始...");
@@ -155,9 +217,23 @@ public class MainActivity extends AppCompatActivity implements GameContract.View
         // 隐藏状态提示
         tvGameStatus.setVisibility(View.GONE);
         
-        // 初始化并开始游戏
-        presenter.initializeGame(12345L, playerNickname, playerColor);
-        presenter.startGame();
+        try {
+            // 根据模式启动游戏
+            if (isMultiplayer && playerId != null && !playerId.isEmpty()) {
+                // 多人模式：使用传入的playerId
+                long playerIdLong = Long.parseLong(playerId);
+                presenter.initializeTimedScoreMode(playerIdLong, playerNickname, playerColor);
+            } else {
+                // 单人模式：使用默认ID
+                presenter.initializeTimedScoreMode(12345L, playerNickname, playerColor);
+            }
+            
+            presenter.startGame();
+        } catch (Exception e) {
+            Toast.makeText(this, "游戏启动失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            gameStarted = false;
+            showStartGamePrompt();
+        }
     }
     
     @Override
@@ -255,12 +331,212 @@ public class MainActivity extends AppCompatActivity implements GameContract.View
             tvLeaderboard.setText("等待玩家...");
         }
     }
+
+    @Override
+    public void onTimeUpdate(int remainingTimeSeconds) {
+        runOnUiThread(() -> {
+            int minutes = remainingTimeSeconds / 60;
+            int seconds = remainingTimeSeconds % 60;
+            tvTime.setText(String.format("时间: %02d:%02d", minutes, seconds));
+        });
+    }
+
+    @Override
+    public void onTimedGameEnded(String winnerMessage) {
+        runOnUiThread(() -> {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("定时积分赛结束")
+                    .setMessage(winnerMessage)
+                    .setPositiveButton("再来一局", (dialog, which) -> {
+                        presenter.restartGame();
+                    })
+                    .setNegativeButton("返回主页", (dialog, which) -> {
+                        finish();
+                    })
+                    .setCancelable(false)
+                    .show();
+        });
+    }
+
+    @Override
+    public void onPlayerDiedInTimedMode(String playerName, int finalScore) {
+        runOnUiThread(() -> {
+            tvGameStatus.setText(playerName + " 死亡，得分固定为 " + finalScore + "，已转化为食物");
+            tvGameStatus.setVisibility(View.VISIBLE);
+            
+            // 3秒后隐藏状态信息
+            new Handler().postDelayed(() -> {
+                tvGameStatus.setVisibility(View.GONE);
+            }, 3000);
+        });
+    }
+    
+    // 多人模式网络连接相关方法
+    private void restoreNetworkConnection() {
+        if (isHost) {
+            // 恢复房主的服务器连接
+            restoreServerConnection();
+        } else {
+            // 恢复客户端连接
+            restoreClientConnection();
+        }
+        
+        // 检查连接是否成功
+        if (!isMultiplayer) {
+            Toast.makeText(this, "网络连接失败，转为单人模式", Toast.LENGTH_LONG).show();
+            showStartGamePrompt();
+        }
+    }
+    
+    private void restoreServerConnection() {
+        try {
+            // 如果已有服务器，先完全停止它
+            if (roomServer != null) {
+                roomServer.stopServer();
+                roomServer = null;
+                // 等待一段时间确保端口释放
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            
+            roomServer = new RoomServer(this);
+            roomServer.startServer();
+            Toast.makeText(this, "房主模式：服务器已恢复", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "恢复服务器连接失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            // 不再重新抛出异常，而是设置标志位
+            isMultiplayer = false;
+        }
+    }
+    
+    private void restoreClientConnection() {
+        try {
+            if (roomClient != null) {
+                roomClient.disconnect();
+            }
+            roomClient = new RoomClient(this);
+            if (roomId != null && !roomId.isEmpty()) {
+                roomClient.connectToServer(roomId);
+                Toast.makeText(this, "客户端模式：正在重新连接...", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "房间ID为空", Toast.LENGTH_LONG).show();
+                isMultiplayer = false;
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "恢复客户端连接失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            // 不再重新抛出异常，而是设置标志位
+            isMultiplayer = false;
+        }
+    }
+    
+    // RoomServer.RoomServerListener 实现
+    @Override
+    public void onPlayerJoined(String playerId, String nickname) {
+        runOnUiThread(() -> {
+            Toast.makeText(this, nickname + " 重新加入了游戏", Toast.LENGTH_SHORT).show();
+        });
+    }
+    
+    @Override
+    public void onPlayerLeft(String playerId) {
+        runOnUiThread(() -> {
+            Toast.makeText(this, "有玩家离开了游戏", Toast.LENGTH_SHORT).show();
+        });
+    }
+    
+    @Override
+    public void onMessageReceived(NetworkMessage message) {
+        // 处理网络消息，例如玩家移动、游戏同步等
+        switch (message.getType()) {
+            case PLAYER_MOVE:
+                // 处理其他玩家的移动
+                break;
+            case GAME_UPDATE:
+                // 处理游戏状态同步
+                break;
+            default:
+                break;
+        }
+    }
+    
+    @Override
+    public void onServerError(String error) {
+        runOnUiThread(() -> {
+            Toast.makeText(this, "服务器错误: " + error, Toast.LENGTH_LONG).show();
+        });
+    }
+    
+    // RoomClient.RoomClientListener 实现
+    @Override
+    public void onConnected() {
+        runOnUiThread(() -> {
+            Toast.makeText(this, "重新连接成功！", Toast.LENGTH_SHORT).show();
+            // 自动开始游戏
+            startGame();
+        });
+    }
+    
+    @Override
+    public void onDisconnected() {
+        runOnUiThread(() -> {
+            Toast.makeText(this, "连接已断开", Toast.LENGTH_SHORT).show();
+        });
+    }
+    
+    @Override
+    public void onConnectionError(String error) {
+        runOnUiThread(() -> {
+            Toast.makeText(this, "连接错误: " + error, Toast.LENGTH_LONG).show();
+        });
+    }
+    
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // 暂停游戏
+        if (presenter != null) {
+            presenter.pauseGame();
+        }
+    }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 如果游戏已经开始，恢复游戏
+        if (gameStarted && presenter != null) {
+            presenter.startGame();
+        }
+    }
     
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        
+        // 清理网络连接
+        if (roomServer != null) {
+            roomServer.stopServer();
+            roomServer = null;
+        }
+        
+        if (roomClient != null) {
+            roomClient.disconnect();
+            roomClient = null;
+        }
+        
         if (presenter != null) {
             presenter.detachView();
         }
+        
+        // 等待一点时间确保资源完全释放
+        new Thread(() -> {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }).start();
     }
 }

@@ -38,12 +38,46 @@ public class RoomServer {
             return;
         }
         
+        // 先停止之前的服务器（如果有的话）
+        stopServer();
+        
         new Thread(() -> {
+            ServerSocket tempServerSocket = null;
+            int actualPort = PORT;
+            
+            // 尝试多个端口，直到找到可用的
+            for (int port = PORT; port < PORT + 10; port++) {
+                try {
+                    tempServerSocket = new ServerSocket(port);
+                    actualPort = port;
+                    break;
+                } catch (IOException e) {
+                    Log.w(TAG, "端口 " + port + " 被占用，尝试下一个端口");
+                    if (tempServerSocket != null) {
+                        try {
+                            tempServerSocket.close();
+                        } catch (IOException ex) {
+                            // 忽略关闭异常
+                        }
+                    }
+                }
+            }
+            
+            if (tempServerSocket == null) {
+                Log.e(TAG, "无法找到可用端口");
+                notifyMainThread(() -> {
+                    if (listener != null) {
+                        listener.onServerError("无法找到可用端口");
+                    }
+                });
+                return;
+            }
+            
             try {
-                serverSocket = new ServerSocket(PORT);
+                serverSocket = tempServerSocket;
                 isRunning = true;
                 
-                Log.d(TAG, "服务器启动成功，端口: " + PORT);
+                Log.d(TAG, "服务器启动成功，端口: " + actualPort);
                 Log.d(TAG, "房间ID (IP地址): " + getLocalIPAddress());
                 
                 while (isRunning && !serverSocket.isClosed()) {
@@ -60,11 +94,11 @@ public class RoomServer {
                         }
                     }
                 }
-            } catch (IOException e) {
-                Log.e(TAG, "服务器启动失败", e);
+            } catch (Exception e) {
+                Log.e(TAG, "服务器运行失败", e);
                 notifyMainThread(() -> {
                     if (listener != null) {
-                        listener.onServerError("服务器启动失败: " + e.getMessage());
+                        listener.onServerError("服务器运行失败: " + e.getMessage());
                     }
                 });
             }
@@ -72,11 +106,16 @@ public class RoomServer {
     }
     
     public void stopServer() {
+        Log.d(TAG, "正在停止服务器...");
         isRunning = false;
         
         // 断开所有客户端
         for (ClientHandler client : connectedClients.values()) {
-            client.disconnect();
+            try {
+                client.disconnect();
+            } catch (Exception e) {
+                Log.w(TAG, "断开客户端连接时出错", e);
+            }
         }
         connectedClients.clear();
         
@@ -87,7 +126,16 @@ public class RoomServer {
                 Log.d(TAG, "服务器已关闭");
             } catch (IOException e) {
                 Log.e(TAG, "关闭服务器失败", e);
+            } finally {
+                serverSocket = null;
             }
+        }
+        
+        // 给一点时间让端口释放
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
     

@@ -25,6 +25,13 @@ public class GamePresenter implements GameContract.Presenter {
     private String playerNickname;
     private String playerColor;
     
+    // 定时积分赛相关
+    private boolean isTimedScoreMode = true; // 默认启用定时积分赛
+    private long gameStartTime;
+    private static final long GAME_DURATION_MS = 5 * 60 * 1000; // 5分钟
+    private Runnable timeUpdateRunnable;
+    private List<DeadPlayerFood> deadPlayerFoods = new ArrayList<>();
+    
     public GamePresenter() {
         this.mainHandler = new Handler(Looper.getMainLooper());
         this.isGameActive = false;
@@ -46,6 +53,7 @@ public class GamePresenter implements GameContract.Presenter {
         this.playerId = String.valueOf(playerId);
         this.playerNickname = nickname;
         this.playerColor = color;
+        this.isTimedScoreMode = true; // 强制启用定时积分赛
         
         if (view != null) {
             view.showLoading();
@@ -60,15 +68,22 @@ public class GamePresenter implements GameContract.Presenter {
         }
     }
     
-// 修改generateMockData方法
-private void generateMockData() {
-    gameWorld = new GameWorld();
-    gameWorld.setGridSize(20);
-    gameWorld.setGameSpeed(200);
+    // 新增：初始化定时积分赛模式
+    @Override
+    public void initializeTimedScoreMode(long playerId, String nickname, String color) {
+        this.isTimedScoreMode = true;
+        this.gameStartTime = System.currentTimeMillis();
+        initializeGame(playerId, nickname, color);
+    }
     
-    // 设置大世界地图（100x100）
-    gameWorld.setWorldMapCols(100);
-    gameWorld.setWorldMapRows(100);
+    private void generateMockData() {
+        gameWorld = new GameWorld();
+        gameWorld.setGridSize(20);
+        gameWorld.setGameSpeed(100); // 设置为100ms，使移动更流畅
+        
+        // 设置大世界地图（100x100）
+        gameWorld.setWorldMapCols(100);
+        gameWorld.setWorldMapRows(100);
     
     // 创建玩家的蛇（在世界中心附近）
     Snake mySnake = new Snake();
@@ -171,17 +186,17 @@ private void generateMockData() {
         if (attempts < 50) {
             food.setPosition(position);
             
-            // 随机生成不同类型的食物
-            int type = random.nextInt(10);
-            if (type == 0) {
-                food.setType("good");
-                food.setValue(20);
-            } else if (type == 1) {
-                food.setType("bad");
-                food.setValue(-5);
+            // 随机生成不同类型的食物，使用新的枚举类型
+            int typeRoll = random.nextInt(100);
+            if (typeRoll < 10) {
+                // 10% 概率生成好食物（星星）
+                food.setType(Food.FoodType.GOOD_FOOD);
+            } else if (typeRoll < 20) {
+                // 10% 概率生成坏食物（骷髅头）
+                food.setType(Food.FoodType.BAD_FOOD);
             } else {
-                food.setType("normal");
-                food.setValue(10);
+                // 80% 概率生成普通食物（苹果）
+                food.setType(Food.FoodType.APPLE);
             }
             
             foods.add(food);
@@ -253,8 +268,18 @@ private void generateFood() {
             
             if (attempts < 50) {  // 只有找到合适位置才添加
                 food.setPosition(position);
-                food.setType("normal");
-                food.setValue(10);
+                
+                // 随机生成不同类型的食物
+                Random foodTypeRandom = new Random();
+                int typeRoll = foodTypeRandom.nextInt(100);
+                if (typeRoll < 5) {
+                    food.setType(Food.FoodType.GOOD_FOOD);
+                } else if (typeRoll < 15) {
+                    food.setType(Food.FoodType.BAD_FOOD);
+                } else {
+                    food.setType(Food.FoodType.APPLE);
+                }
+                
                 foods.add(food);
             }
         }
@@ -308,8 +333,17 @@ private void ensureFoodInViewport() {
             
             if (attempts < 20) {
                 food.setPosition(position);
-                food.setType("normal");
-                food.setValue(10);
+                
+                // 随机生成不同类型的食物
+                int typeRoll = random.nextInt(100);
+                if (typeRoll < 5) {
+                    food.setType(Food.FoodType.GOOD_FOOD);
+                } else if (typeRoll < 15) {
+                    food.setType(Food.FoodType.BAD_FOOD);
+                } else {
+                    food.setType(Food.FoodType.APPLE);
+                }
+                
                 foods.add(food);
             }
         }
@@ -341,7 +375,8 @@ private void ensureFoodInViewport() {
     
     @Override
     public void handlePlayerMove(String direction) {
-        if (!isGameActive || gameWorld.getMySnake() == null) return;
+        // 只有活着的玩家才能控制移动
+        if (!isGameActive || gameWorld.getMySnake() == null || !gameWorld.getMySnake().isAlive()) return;
         
         // 防止反向移动
         String currentDirection = gameWorld.getMySnake().getDirection();
@@ -372,6 +407,12 @@ private void ensureFoodInViewport() {
     public void startGame() {
         isGameActive = true;
         gameWorld.setGameRunning(true);
+        
+        if (isTimedScoreMode) {
+            gameStartTime = System.currentTimeMillis();
+            startTimeCountdown();
+        }
+        
         startGameLoop();
         
         if (view != null) {
@@ -396,6 +437,25 @@ private void ensureFoodInViewport() {
         }
     }
     
+    @Override
+    public void restartGame() {
+        // 停止当前游戏
+        endGame();
+        
+        // 重新初始化游戏状态
+        isGameActive = false;
+        gameWorld = new GameWorld();
+        gameWorld.setWorldMapCols(100);
+        gameWorld.setWorldMapRows(100);
+        gameWorld.setGameSpeed(150); // 保持一致的游戏速度
+        
+        // 重新设置定时模式（总是启用）
+        initializeTimedScoreMode(Long.parseLong(playerId), playerNickname, playerColor);
+        
+        // 启动新游戏
+        startGame();
+    }
+    
     private void startGameLoop() {
         gameUpdateRunnable = new Runnable() {
             @Override
@@ -416,11 +476,115 @@ private void ensureFoodInViewport() {
         if (gameUpdateRunnable != null) {
             mainHandler.removeCallbacks(gameUpdateRunnable);
         }
+        if (timeUpdateRunnable != null) {
+            mainHandler.removeCallbacks(timeUpdateRunnable);
+        }
+    }
+    
+    private void startTimeCountdown() {
+        timeUpdateRunnable = new Runnable() {
+            @Override
+            public void run() {
+                long elapsed = System.currentTimeMillis() - gameStartTime;
+                long remaining = GAME_DURATION_MS - elapsed;
+                
+                if (remaining <= 0) {
+                    // 游戏时间结束
+                    endTimedGame();
+                } else {
+                    // 更新剩余时间显示
+                    if (view != null) {
+                        int remainingTimeSeconds = (int) (remaining / 1000);
+                        view.onTimeUpdate(remainingTimeSeconds);
+                    }
+                    
+                    // 每秒更新一次
+                    mainHandler.postDelayed(this, 1000);
+                }
+            }
+        };
+        mainHandler.post(timeUpdateRunnable);
+    }
+    
+    private void endTimedGame() {
+        isGameActive = false;
+        gameWorld.setGameRunning(false);
+        stopGameLoop();
+        
+        if (view != null) {
+            // 计算获胜者信息
+            String winnerMessage = "游戏结束！";
+            Snake mySnake = gameWorld.getMySnake();
+            if (mySnake != null) {
+                winnerMessage = "游戏结束！最终得分：" + mySnake.getScore();
+            }
+            view.onTimedGameEnded(winnerMessage);
+        }
+    }
+    
+    private void handlePlayerDeathInTimedMode() {
+        Snake mySnake = gameWorld.getMySnake();
+        if (mySnake != null && mySnake.isAlive()) {
+            Point headPosition = getSnakeHead(mySnake);
+            if (headPosition != null) {
+                // 创建死亡玩家食物
+                DeadPlayerFood deadFood = new DeadPlayerFood(
+                    new Point(headPosition.getX(), headPosition.getY()),
+                    mySnake.getScore(),
+                    playerNickname,
+                    playerColor
+                );
+                deadPlayerFoods.add(deadFood);
+                
+                // 将玩家标记为死亡，分数固定，进入旁观模式
+                mySnake.setAlive(false);
+                
+                if (view != null) {
+                    view.onPlayerDiedInTimedMode(playerNickname, mySnake.getScore());
+                }
+                
+                // 不再重生，玩家进入旁观模式
+                // 可以将视野切换到排行榜第一名或保持当前视野
+                switchToSpectatorMode();
+            }
+        }
+    }
+    
+    private void switchToSpectatorMode() {
+        // 进入旁观模式，可以将视野切换到排行榜第一名的蛇
+        if (gameWorld.getLeaderboard() != null && !gameWorld.getLeaderboard().isEmpty()) {
+            // 找到排行榜第一名对应的活着的蛇
+            Player topPlayer = gameWorld.getLeaderboard().get(0);
+            Snake targetSnake = null;
+            
+            // 在其他蛇中寻找排行榜第一名
+            if (gameWorld.getOtherSnakes() != null) {
+                for (Snake snake : gameWorld.getOtherSnakes()) {
+                    if (snake.isAlive() && snake.getPlayerId().equals(topPlayer.getPlayerId())) {
+                        targetSnake = snake;
+                        break;
+                    }
+                }
+            }
+            
+            // 如果找到目标蛇，将视野切换到它的位置
+            if (targetSnake != null) {
+                Point targetHead = getSnakeHead(targetSnake);
+                if (targetHead != null) {
+                    gameWorld.updateViewToCenter(targetHead);
+                }
+            }
+        }
+        
+        if (view != null) {
+            // 注意：需要在GameContract.View接口中添加onEnterSpectatorMode()方法
+            // view.onEnterSpectatorMode();
+        }
     }
     
     // 修改updateGame方法
     private void updateGame() {
-        // 更新玩家的蛇
+        // 只有活着的玩家才更新蛇的移动和碰撞检测
         if (gameWorld.getMySnake() != null && gameWorld.getMySnake().isAlive()) {
             moveSnake(gameWorld.getMySnake());
             
@@ -432,8 +596,11 @@ private void ensureFoodInViewport() {
             
             checkBoundaryCollision();
             checkOtherSnakeCollision(); // 检查与其他蛇的碰撞
-            // 移除自碰撞检测 - checkSelfCollision();
             checkFoodCollision();
+        } else if (gameWorld.getMySnake() != null && !gameWorld.getMySnake().isAlive()) {
+            // 玩家已死亡，进入旁观模式
+            // 可以跟随排行榜第一名的视野，或者保持当前视野让玩家自由观看
+            updateSpectatorView();
         }
         
         updateBotSnakes();
@@ -447,6 +614,31 @@ private void ensureFoodInViewport() {
         }
     }
 
+    private void updateSpectatorView() {
+        // 在旁观模式下，可以跟随排行榜第一名的蛇
+        if (gameWorld.getLeaderboard() != null && !gameWorld.getLeaderboard().isEmpty()) {
+            Player topPlayer = gameWorld.getLeaderboard().get(0);
+            Snake targetSnake = null;
+            
+            // 寻找排行榜第一名对应的活着的蛇
+            if (gameWorld.getOtherSnakes() != null) {
+                for (Snake snake : gameWorld.getOtherSnakes()) {
+                    if (snake.isAlive() && snake.getPlayerId().equals(topPlayer.getPlayerId())) {
+                        targetSnake = snake;
+                        break;
+                    }
+                }
+            }
+            
+            // 如果找到目标蛇，更新视野跟随它
+            if (targetSnake != null) {
+                Point targetHead = getSnakeHead(targetSnake);
+                if (targetHead != null) {
+                    gameWorld.updateViewToCenter(targetHead);
+                }
+            }
+        }
+    }
     
     private void moveSnake(Snake snake) {
         List<Point> bodyPoints = snake.getBodyPoints();
@@ -474,11 +666,16 @@ private void ensureFoodInViewport() {
         // 添加新头部
         bodyPoints.add(0, newHead);
         
-        // 如果没有吃到食物，移除尾部
+        // 如果没有待增长的节数，移除尾部
         if (!snake.isGrowing()) {
             bodyPoints.remove(bodyPoints.size() - 1);
         } else {
-            snake.setGrowing(false);
+            // 减少一个待增长节数
+            if (snake.getGrowthPending() > 0) {
+                snake.decreaseGrowthPending();
+            } else {
+                snake.setGrowing(false);
+            }
         }
     }
     
@@ -540,8 +737,13 @@ private void checkBoundaryCollision() {
         
         if (x < 0 || x >= worldCols || 
             y < 0 || y >= worldRows) {
-            gameWorld.getMySnake().setAlive(false);
-            endGame();
+            
+            if (isTimedScoreMode) {
+                handlePlayerDeathInTimedMode();
+            } else {
+                gameWorld.getMySnake().setAlive(false);
+                endGame();
+            }
         }
     }
     }
@@ -556,8 +758,13 @@ private void checkBoundaryCollision() {
                 if (otherSnake.isAlive() && otherSnake.getBodyPoints() != null) {
                     for (Point bodyPoint : otherSnake.getBodyPoints()) {
                         if (myHead.getX() == bodyPoint.getX() && myHead.getY() == bodyPoint.getY()) {
-                            gameWorld.getMySnake().setAlive(false);
-                            endGame();
+                            
+                            if (isTimedScoreMode) {
+                                handlePlayerDeathInTimedMode();
+                            } else {
+                                gameWorld.getMySnake().setAlive(false);
+                                endGame();
+                            }
                             return;
                         }
                     }
@@ -580,40 +787,54 @@ private void checkBoundaryCollision() {
                 }
             }
         }
-    }    private void checkFoodCollision() {
-    Point head = getSnakeHead(gameWorld.getMySnake());
-    if (head == null || gameWorld.getFoods() == null) return;
-    
-    List<Food> foods = gameWorld.getFoods();
-    Food eatenFood = null;
-    
-    // 查找被吃掉的食物
-    for (Food food : foods) {
-        if (head.equals(food.getPosition())) {
-            eatenFood = food;
-            break;
-        }
     }
     
-    // 如果找到被吃掉的食物，处理它
-    if (eatenFood != null) {
-        // 移除被吃掉的食物
-        foods.remove(eatenFood);
+    private void checkFoodCollision() {
+        Point head = getSnakeHead(gameWorld.getMySnake());
+        if (head == null || gameWorld.getFoods() == null) return;
         
-        // 增加分数
-        Snake mySnake = gameWorld.getMySnake();
-        mySnake.setScore(mySnake.getScore() + eatenFood.getValue());
+        List<Food> foods = gameWorld.getFoods();
+        Food eatenFood = null;
         
-        // 增长蛇身（添加一个新的身体节点）
-        List<Point> bodyPoints = mySnake.getBodyPoints();
-        if (!bodyPoints.isEmpty()) {
-            Point tail = bodyPoints.get(bodyPoints.size() - 1);
-            bodyPoints.add(new Point(tail.getX(), tail.getY()));
+        // 查找被吃掉的食物
+        for (Food food : foods) {
+            if (head.equals(food.getPosition())) {
+                eatenFood = food;
+                break;
+            }
         }
         
-        // 在远处随机位置生成一个新食物来替代被吃掉的食物
-        addRandomFood();
-    }
+        // 如果找到被吃掉的食物，处理它
+        if (eatenFood != null) {
+            // 移除被吃掉的食物
+            foods.remove(eatenFood);
+            
+            Snake mySnake = gameWorld.getMySnake();
+            
+            // 根据食物类型产生不同效果
+            switch (eatenFood.getType()) {
+                case APPLE:
+                    // 普通苹果：+10分，长度+1
+                    mySnake.setScore(mySnake.getScore() + eatenFood.getValue());
+                    mySnake.grow();
+                    break;
+                    
+                case GOOD_FOOD:
+                    // 星星：+20分，长度+2
+                    mySnake.setScore(mySnake.getScore() + eatenFood.getValue());
+                    mySnake.growByAmount(2);
+                    break;
+                    
+                case BAD_FOOD:
+                    // 骷髅头：-5分，长度-1
+                    mySnake.setScore(Math.max(0, mySnake.getScore() + eatenFood.getValue()));
+                    mySnake.shrink();
+                    break;
+            }
+            
+            // 在远处随机位置生成一个新食物来替代被吃掉的食物
+            addRandomFood();
+        }
     }
 
     // 添加单个随机食物
@@ -633,9 +854,39 @@ private void addRandomFood() {
     
     if (attempts < 50) {
         food.setPosition(position);
-        food.setType("normal");
-        food.setValue(10);
+        
+        // 随机生成不同类型的食物
+        int typeRoll = random.nextInt(100);
+        if (typeRoll < 5) {
+            food.setType(Food.FoodType.GOOD_FOOD);
+        } else if (typeRoll < 15) {
+            food.setType(Food.FoodType.BAD_FOOD);
+        } else {
+            food.setType(Food.FoodType.APPLE);
+        }
+        
         gameWorld.getFoods().add(food);
     }
+}
+
+// 死亡玩家食物类
+class DeadPlayerFood {
+    private Point position;
+    private int score;
+    private String playerName;
+    private String playerColor;
+    
+    public DeadPlayerFood(Point position, int score, String playerName, String playerColor) {
+        this.position = position;
+        this.score = score;
+        this.playerName = playerName;
+        this.playerColor = playerColor;
+    }
+    
+    // Getters
+    public Point getPosition() { return position; }
+    public int getScore() { return score; }
+    public String getPlayerName() { return playerName; }
+    public String getPlayerColor() { return playerColor; }
 }
 }

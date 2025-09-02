@@ -15,16 +15,23 @@ public interface GameContract {
         void onGameEnded();
         void showChatMessage(String playerName, String message);
         void updateLeaderboard(List<Player> leaderboard);
+        
+        // 定时积分赛相关
+        void onTimeUpdate(int remainingTimeSeconds);
+        void onTimedGameEnded(String winnerMessage);
+        void onPlayerDiedInTimedMode(String playerName, int finalScore);
     }
     
     interface Presenter {
         void attachView(View view);
         void detachView();
         void initializeGame(long playerId, String nickname, String color);
+        void initializeTimedScoreMode(long playerId, String nickname, String color);
         void handlePlayerMove(String direction);
         void sendChatMessage(String message);
         void startGame();
         void pauseGame();
         void endGame();
+        void restartGame();
     }
 }
