@@ -12,7 +12,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class RegisterActivity extends AppCompatActivity {
     
-    private EditText etUsername, etNickname, etPassword, etConfirmPassword;
+    private EditText etNickname, etPassword, etConfirmPassword;
     private Button btnRegister;
     private TextView tvLoginLink;
 
@@ -26,7 +26,6 @@ public class RegisterActivity extends AppCompatActivity {
     }
     
     private void initViews() {
-        etUsername = findViewById(R.id.et_username);
         etNickname = findViewById(R.id.et_nickname);
         etPassword = findViewById(R.id.et_password);
         etConfirmPassword = findViewById(R.id.et_confirm_password);
@@ -51,12 +50,11 @@ public class RegisterActivity extends AppCompatActivity {
     }
     
     private void register() {
-        String username = etUsername.getText().toString().trim();
         String nickname = etNickname.getText().toString().trim();
         String password = etPassword.getText().toString().trim();
         String confirmPassword = etConfirmPassword.getText().toString().trim();
         
-        if (username.isEmpty() || nickname.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
+        if (nickname.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
             Toast.makeText(this, "请填写所有字段", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -71,16 +69,15 @@ public class RegisterActivity extends AppCompatActivity {
             return;
         }
         
-        // 检查用户名是否已存在
-        SharedPreferences userPrefs = getSharedPreferences("User_" + username, MODE_PRIVATE);
+        // 检查昵称是否已存在
+        SharedPreferences userPrefs = getSharedPreferences("User_" + nickname, MODE_PRIVATE);
         if (userPrefs.contains("password")) {
-            Toast.makeText(this, "用户名已存在", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "昵称已存在", Toast.LENGTH_SHORT).show();
             return;
         }
         
         // 保存用户信息
         SharedPreferences.Editor editor = userPrefs.edit();
-        editor.putString("username", username);
         editor.putString("nickname", nickname);
         editor.putString("password", password);
         editor.apply();

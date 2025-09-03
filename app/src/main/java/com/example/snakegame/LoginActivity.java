@@ -12,7 +12,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class LoginActivity extends AppCompatActivity {
     
-    private EditText etUsername, etPassword;
+    private EditText etNickname, etPassword;
     private Button btnLogin;
     private TextView tvRegisterLink;
     private SharedPreferences sharedPreferences;
@@ -35,7 +35,7 @@ public class LoginActivity extends AppCompatActivity {
     }
     
     private void initViews() {
-        etUsername = findViewById(R.id.et_username);
+        etNickname = findViewById(R.id.et_nickname);
         etPassword = findViewById(R.id.et_password);
         btnLogin = findViewById(R.id.btn_login);
         tvRegisterLink = findViewById(R.id.tv_register_link);
@@ -58,16 +58,16 @@ public class LoginActivity extends AppCompatActivity {
     }
     
     private void login() {
-        String username = etUsername.getText().toString().trim();
+        String nickname = etNickname.getText().toString().trim();
         String password = etPassword.getText().toString().trim();
         
-        if (username.isEmpty() || password.isEmpty()) {
-            Toast.makeText(this, "请输入用户名和密码", Toast.LENGTH_SHORT).show();
+        if (nickname.isEmpty() || password.isEmpty()) {
+            Toast.makeText(this, "请输入昵称和密码", Toast.LENGTH_SHORT).show();
             return;
         }
         
-        // 验证用户信息
-        SharedPreferences userPrefs = getSharedPreferences("User_" + username, MODE_PRIVATE);
+        // 验证用户信息 - 现在基于昵称查找用户
+        SharedPreferences userPrefs = getSharedPreferences("User_" + nickname, MODE_PRIVATE);
         String savedPassword = userPrefs.getString("password", "");
         
         if (savedPassword.isEmpty()) {
@@ -83,8 +83,7 @@ public class LoginActivity extends AppCompatActivity {
         // 登录成功，保存登录状态
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putBoolean("isLoggedIn", true);
-        editor.putString("currentUsername", username);
-        editor.putString("currentNickname", userPrefs.getString("nickname", username));
+        editor.putString("currentNickname", nickname);
         editor.apply();
         
         Toast.makeText(this, "登录成功", Toast.LENGTH_SHORT).show();

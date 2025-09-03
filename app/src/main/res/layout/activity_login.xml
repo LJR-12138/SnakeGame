@@ -45,7 +45,7 @@
             android:layout_gravity="center" />
 
         <EditText
-            android:id="@+id/et_username"
+            android:id="@+id/et_nickname"
             android:layout_width="match_parent"
             android:layout_height="40dp"
             android:hint="昵称"
