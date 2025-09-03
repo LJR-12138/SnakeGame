@@ -48,7 +48,7 @@
             android:id="@+id/et_username"
             android:layout_width="match_parent"
             android:layout_height="40dp"
-            android:hint="用户名"
+            android:hint="昵称"
             android:textColor="#FFFFFF"
             android:textColorHint="#CCCCCC"
             android:background="#3a3a3a"
