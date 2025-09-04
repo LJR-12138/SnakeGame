@@ -79,41 +79,41 @@ public class GamePresenter implements GameContract.Presenter {
     private void generateMockData() {
         gameWorld = new GameWorld();
         gameWorld.setGridSize(20);
-        gameWorld.setGameSpeed(100); // 设置为100ms，使移动更流畅
+        gameWorld.setGameSpeed(180); // 设置为180ms，保持稳定的移动速度
         
         // 设置大世界地图（100x100）
         gameWorld.setWorldMapCols(100);
         gameWorld.setWorldMapRows(100);
-    
-    // 创建玩家的蛇（在世界中心附近）
-    Snake mySnake = new Snake();
-    mySnake.setPlayerId(playerId);
-    mySnake.setNickname(playerNickname);
-    mySnake.setColor(playerColor);
-    mySnake.setScore(0);
-    mySnake.setAlive(true);
-    
-    // 在世界地图中心附近初始化蛇
-    List<Point> bodyPoints = new ArrayList<>();
-    bodyPoints.add(new Point(50, 50));  // 世界坐标
-    bodyPoints.add(new Point(50, 51));
-    bodyPoints.add(new Point(50, 52));
-    mySnake.setBodyPoints(bodyPoints);
-    mySnake.setDirection("UP");
-    
-    gameWorld.setMySnake(mySnake);
-    
-    // 更新视野以蛇头为中心
-    gameWorld.updateViewToCenter(bodyPoints.get(0));
-    
-    // 创建Bot蛇
-    createBotSnakes();
-    
-    updateLeaderboard();
-    
-    // 使用新的初始食物生成方法
-    generateInitialFood();
-}
+        
+        // 创建玩家的蛇（在世界中心附近）
+        Snake mySnake = new Snake();
+        mySnake.setPlayerId(playerId);
+        mySnake.setNickname(playerNickname);
+        mySnake.setColor(playerColor);
+        mySnake.setScore(0);
+        mySnake.setAlive(true);
+        
+        // 在世界地图中心附近初始化蛇
+        List<Point> bodyPoints = new ArrayList<>();
+        bodyPoints.add(new Point(50, 50));  // 世界坐标
+        bodyPoints.add(new Point(50, 51));
+        bodyPoints.add(new Point(50, 52));
+        mySnake.setBodyPoints(bodyPoints);
+        mySnake.setDirection("UP");
+        
+        gameWorld.setMySnake(mySnake);
+        
+        // 更新视野以蛇头为中心
+        gameWorld.updateViewToCenter(bodyPoints.get(0));
+        
+        // 创建Bot蛇
+        createBotSnakes();
+        
+        updateLeaderboard();
+        
+        // 使用新的初始食物生成方法
+        generateInitialFood();
+    }
 
 
         // 添加createBotSnakes方法到GamePresenter类中
@@ -447,7 +447,7 @@ private void ensureFoodInViewport() {
         gameWorld = new GameWorld();
         gameWorld.setWorldMapCols(100);
         gameWorld.setWorldMapRows(100);
-        gameWorld.setGameSpeed(150); // 保持一致的游戏速度
+        gameWorld.setGameSpeed(180); // 调大数值让蛇移动变慢
         
         // 重新设置定时模式（总是启用）
         initializeTimedScoreMode(Long.parseLong(playerId), playerNickname, playerColor);
@@ -457,6 +457,9 @@ private void ensureFoodInViewport() {
     }
     
     private void startGameLoop() {
+        // 先停止之前的游戏循环，避免重复运行
+        stopGameLoop();
+        
         gameUpdateRunnable = new Runnable() {
             @Override
             public void run() {
@@ -541,6 +544,11 @@ private void ensureFoodInViewport() {
                 
                 // 将玩家标记为死亡，分数固定，进入旁观模式
                 mySnake.setAlive(false);
+                
+                // 清空蛇身，让蛇消失但保留蛇对象用于旁观模式
+                if (mySnake.getBodyPoints() != null) {
+                    mySnake.getBodyPoints().clear();
+                }
                 
                 if (view != null) {
                     view.onPlayerDiedInTimedMode(playerNickname, mySnake.getScore());
@@ -717,10 +725,15 @@ private void ensureFoodInViewport() {
     // 检查死亡的蛇并为它们掉落食物
     private void checkDeadSnakesForFoodDrop() {
         if (gameWorld.getOtherSnakes() != null) {
-            for (Snake snake : gameWorld.getOtherSnakes()) {
+            // 使用迭代器来安全地移除死蛇
+            java.util.Iterator<Snake> iterator = gameWorld.getOtherSnakes().iterator();
+            while (iterator.hasNext()) {
+                Snake snake = iterator.next();
                 if (!snake.isAlive() && !snake.isFoodDropped()) {
                     // 为刚死亡且还没掉落食物的蛇掉落食物
                     dropFoodFromDeadSnake(snake);
+                    // 掉落食物后移除死蛇，让蛇身消失
+                    iterator.remove();
                 }
             }
         }

@@ -85,22 +85,10 @@ public class MainActivity extends AppCompatActivity implements GameContract.View
         if (isMultiplayer) {
             // 多人模式：恢复网络连接
             restoreNetworkConnection();
-            Toast.makeText(this, "多人游戏模式 - 房间: " + roomId + " (域ID: " + domainId + ")", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "多人游戏模式 - 房间: " + roomId + " (域ID: " + domainId + ")", Toast.LENGTH_SHORT).show();
             
-            // 如果是房主且连接成功，延迟启动游戏
-            if (isHost && isMultiplayer) {
-                showMultiplayerGamePrompt(domainId);
-                // 延迟3秒后自动开始游戏
-                new Handler().postDelayed(() -> {
-                    if (!gameStarted) {
-                        startGame();
-                    }
-                }, 3000);
-            } else if (isMultiplayer) {
-                showMultiplayerGamePrompt(domainId);
-                // 客户端等待连接成功后自动开始
-            }
-            // 如果isMultiplayer被设为false，说明连接失败，已经在restoreNetworkConnection中处理了
+            // 直接开始游戏，跳过等待界面
+            startGame();
         } else {
             // 单人模式：显示开始游戏提示
             showStartGamePrompt();

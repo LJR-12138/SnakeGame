@@ -36,7 +36,7 @@ public class GameWorld {
         this.viewOffsetX = 0;
         this.viewOffsetY = 0;
         
-        this.gameSpeed = 200;
+        this.gameSpeed = 180;  // 确保默认速度与其他地方一致
     }
     
     // 原有的getters和setters...

@@ -153,7 +153,7 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
             updateUI();
             
             tvRoomId.setText(roomId);
-            Toast.makeText(this, "房间创建成功！\n房间号: " + roomId + "\n(请分享房间号给其他玩家)", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "房间创建成功！房间号: " + roomId + "\n(请分享房间号给其他玩家)", Toast.LENGTH_LONG).show();
             
         } catch (Exception e) {
             Toast.makeText(this, "创建房间异常: " + e.getMessage(), Toast.LENGTH_LONG).show();
@@ -417,8 +417,9 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
     }
     
     private void startGame() {
+        // 移除最小玩家数限制，允许房主单独开始游戏
         if (playerList.size() < 1) {
-            Toast.makeText(this, "至少需要1个玩家才能开始游戏", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "玩家列表为空，无法开始游戏", Toast.LENGTH_SHORT).show();
             return;
         }
         
