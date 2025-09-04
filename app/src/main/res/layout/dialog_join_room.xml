@@ -19,12 +19,13 @@
         android:id="@+id/et_room_id"
         android:layout_width="match_parent"
         android:layout_height="48dp"
-        android:hint="请输入房间IP地址 (如: 192.168.1.100)"
+        android:hint="请输入6位房间号 (如: 123456)"
         android:textColor="#FFFFFF"
         android:textColorHint="#CCCCCC"
         android:background="#3a3a3a"
         android:padding="12dp"
-        android:inputType="text"
+        android:inputType="number"
+        android:maxLength="6"
         android:layout_marginBottom="16dp" />
 
     <LinearLayout

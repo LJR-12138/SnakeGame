@@ -13,9 +13,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.snakegame.network.NetworkMessage;
 import com.example.snakegame.network.RoomServer;
 import com.example.snakegame.network.RoomClient;
+import java.util.Random;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 public class RoomActivity extends AppCompatActivity implements RoomServer.RoomServerListener, RoomClient.RoomClientListener {
     
@@ -25,7 +25,8 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
     private PlayerAdapter playerAdapter;
     private List<Player> playerList;
     private SharedPreferences sharedPreferences;
-    private String roomId;
+    private String roomId;  // 6位房间号
+    private String serverIP; // 实际的服务器IP地址
     private boolean isHost;
     
     // 网络相关
@@ -42,6 +43,7 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
         sharedPreferences = getSharedPreferences("UserData", MODE_PRIVATE);
         isHost = getIntent().getBooleanExtra("isHost", false);
         roomId = getIntent().getStringExtra("roomId");
+        serverIP = getIntent().getStringExtra("serverIP"); // 获取服务器IP地址
         
         // 初始化当前玩家信息
         currentPlayerId = String.valueOf(System.currentTimeMillis()); // 使用时间戳作为唯一ID
@@ -80,11 +82,12 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
         btnCopyRoomId.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // 复制房间号到剪贴板
+                // 复制房间信息到剪贴板
+                String roomInfo = "房间号: " + roomId + "\nIP地址: " + (serverIP != null ? serverIP : "未知");
                 android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-                android.content.ClipData clip = android.content.ClipData.newPlainText("房间号", roomId);
+                android.content.ClipData clip = android.content.ClipData.newPlainText("房间信息", roomInfo);
                 clipboard.setPrimaryClip(clip);
-                Toast.makeText(RoomActivity.this, "房间号已复制", Toast.LENGTH_SHORT).show();
+                Toast.makeText(RoomActivity.this, "房间信息已复制", Toast.LENGTH_SHORT).show();
             }
         });
         
@@ -123,8 +126,10 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
             // 显示正在创建房间
             Toast.makeText(this, "正在创建房间...", Toast.LENGTH_SHORT).show();
             
-            // 房间ID使用IP地址
-            roomId = roomServer.getLocalIPAddress();
+            // 房间ID使用6位随机数字
+            roomId = generateRoomId();
+            // 获取服务器IP地址用于网络连接
+            serverIP = roomServer.getLocalIPAddress();
             
             // 添加房主到玩家列表
             Player hostPlayer = new Player(currentPlayerNickname, true);
@@ -149,9 +154,15 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
             return;
         }
         
+        if (serverIP == null || serverIP.isEmpty()) {
+            Toast.makeText(this, "服务器地址无效", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        
         try {
             roomClient = new RoomClient(this);
-            roomClient.connectToServer(roomId); // 这个方法已经是异步的了
+            roomClient.connectToServer(serverIP); // 使用实际的IP地址连接
             
             tvRoomId.setText(roomId);
             Toast.makeText(this, "正在连接房间...", Toast.LENGTH_SHORT).show();
