@@ -28,12 +28,20 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
     private String roomId;  // 6位房间号
     private String serverIP; // 实际的服务器IP地址
     private boolean isHost;
+    private int domainId;  // 当前房间的DDS域号
     
     // 网络相关
     private RoomServer roomServer;
     private RoomClient roomClient;
     private String currentPlayerId;
     private String currentPlayerNickname;
+    
+    // DDS配置 - 域号范围
+    // domainId 是DDS (Data Distribution Service) 的域标识符，用于隔离不同的DDS应用
+    // 每个房间分配一个独立的域号，确保不同房间之间的DDS通信完全隔离
+    // 域号范围：0-232，房主创建房间时随机生成，其他玩家通过网络消息获得
+    private static final int MIN_DOMAIN_ID = 0;
+    private static final int MAX_DOMAIN_ID = 232;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -82,7 +90,7 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
         btnCopyRoomId.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // 复制房间信息到剪贴板
+                // 复制房间信息到剪贴板（仅显示房间号给用户）
                 String roomInfo = "房间号: " + roomId + "\nIP地址: " + (serverIP != null ? serverIP : "未知");
                 android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
                 android.content.ClipData clip = android.content.ClipData.newPlainText("房间信息", roomInfo);
@@ -128,6 +136,9 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
             
             // 房间ID使用6位随机数字
             roomId = generateRoomId();
+            // 为这个房间随机生成一个DDS域号
+            domainId = generateDomainId();
+            
             // 获取服务器IP地址用于网络连接
             serverIP = roomServer.getLocalIPAddress();
             
@@ -140,7 +151,7 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
             updateUI();
             
             tvRoomId.setText(roomId);
-            Toast.makeText(this, "房间创建成功！房间号: " + roomId, Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "房间创建成功！房间号: " + roomId + " (域号: " + domainId + ")", Toast.LENGTH_LONG).show();
             
         } catch (Exception e) {
             Toast.makeText(this, "创建房间异常: " + e.getMessage(), Toast.LENGTH_LONG).show();
@@ -246,8 +257,16 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
                     break;
                 case GAME_START:
                     runOnUiThread(() -> {
-                        // 启动多人游戏
-                        startMultiplayerGame();
+                        // 客户端收到游戏开始消息，检查是否包含域ID
+                        if (message.getData() instanceof DomainIdData) {
+                            DomainIdData domainData = (DomainIdData) message.getData();
+                            domainId = domainData.domainId; // 保存域号
+                            startMultiplayerGameWithDomainId(domainData.domainId);
+                        } else {
+                            // 兼容旧版本，生成一个默认域ID
+                            domainId = generateDomainId();
+                            startMultiplayerGameWithDomainId(domainId);
+                        }
                     });
                     break;
                 case PLAYER_LIST_UPDATE:
@@ -389,6 +408,12 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
         return String.format("%06d", random.nextInt(1000000));
     }
     
+    // 为房间随机生成一个DDS域号
+    private int generateDomainId() {
+        Random random = new Random();
+        return random.nextInt(MAX_DOMAIN_ID - MIN_DOMAIN_ID + 1) + MIN_DOMAIN_ID;
+    }
+    
     private void startGame() {
         if (playerList.size() < 1) {
             Toast.makeText(this, "至少需要1个玩家才能开始游戏", Toast.LENGTH_SHORT).show();
@@ -396,20 +421,12 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
         }
         
         if (isHost) {
-            // 房主发送游戏开始消息
-            NetworkMessage startMessage = new NetworkMessage(
-                NetworkMessage.MessageType.GAME_START,
-                currentPlayerId,
-                currentPlayerNickname,
-                null
-            );
-            
-            if (roomServer != null) {
-                roomServer.broadcastMessage(startMessage);
-            }
+            // 房主使用生成的域号启动游戏
+            startMultiplayerGameWithDomainId(domainId);
+        } else {
+            // 非房主直接开始游戏（域ID由房主决定并通过网络传递）
+            startMultiplayerGame();
         }
-        
-        startMultiplayerGame();
     }
     
     private void startMultiplayerGame() {
@@ -421,6 +438,45 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
         intent.putExtra("isHost", isHost);
         intent.putExtra("playerId", currentPlayerId);
         intent.putExtra("playerNickname", currentPlayerNickname);
+        
+        // 注意：不要在这里销毁网络连接，让MainActivity处理
+        startActivity(intent);
+        
+        // 不要调用finish()，保持RoomActivity在后台
+        // finish();
+    }
+
+    private void startMultiplayerGameWithDomainId(int domainId) {
+        // 启动多人游戏并传递域ID
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.putExtra("isMultiplayer", true);
+        intent.putExtra("roomId", roomId);
+        intent.putExtra("playerCount", playerList.size());
+        intent.putExtra("isHost", isHost);
+        intent.putExtra("playerId", currentPlayerId);
+        intent.putExtra("playerNickname", currentPlayerNickname);
+        intent.putExtra("domainId", domainId);  // 传递域ID给后端
+        
+        // 如果是房主，发送开始游戏消息，包含域ID
+        if (isHost) {
+            DomainIdData domainData = new DomainIdData(domainId);
+            NetworkMessage startMessage = new NetworkMessage(
+                NetworkMessage.MessageType.GAME_START,
+                currentPlayerId,
+                currentPlayerNickname,
+                domainData
+            );
+            
+            if (roomServer != null) {
+                roomServer.broadcastMessage(startMessage);
+            }
+            
+            // 房主创建游戏时记录域号信息
+            Toast.makeText(this, "开始游戏 - 房间: " + roomId + ", 域号: " + domainId, Toast.LENGTH_SHORT).show();
+        } else {
+            // 客户端加入游戏时记录域号信息
+            Toast.makeText(this, "加入游戏 - 房间: " + roomId + ", 域号: " + domainId, Toast.LENGTH_SHORT).show();
+        }
         
         // 注意：不要在这里销毁网络连接，让MainActivity处理
         startActivity(intent);
@@ -487,6 +543,20 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
         public PlayerListData(List<String> playerNames, List<Boolean> hostStatus) {
             this.playerNames = new ArrayList<>(playerNames);
             this.hostStatus = new ArrayList<>(hostStatus);
+        }
+    }
+
+    // DDS域ID数据类
+    public static class DomainIdData implements java.io.Serializable {
+        private static final long serialVersionUID = 1L;
+        public int domainId;
+        
+        public DomainIdData() {
+            // 默认构造函数
+        }
+        
+        public DomainIdData(int domainId) {
+            this.domainId = domainId;
         }
     }
 }

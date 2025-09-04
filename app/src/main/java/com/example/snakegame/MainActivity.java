@@ -67,6 +67,7 @@ public class MainActivity extends AppCompatActivity implements GameContract.View
         playerCount = getIntent().getIntExtra("playerCount", 1);
         isHost = getIntent().getBooleanExtra("isHost", false);
         playerId = getIntent().getStringExtra("playerId");
+        int domainId = getIntent().getIntExtra("domainId", 42); // 获取域ID，默认为42
         
         // 如果是多人模式但没有传入playerNickname，从Intent获取
         if (isMultiplayer && playerNickname == null) {
@@ -84,11 +85,11 @@ public class MainActivity extends AppCompatActivity implements GameContract.View
         if (isMultiplayer) {
             // 多人模式：恢复网络连接
             restoreNetworkConnection();
-            Toast.makeText(this, "多人游戏模式 - 房间: " + roomId, Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "多人游戏模式 - 房间: " + roomId + " (域ID: " + domainId + ")", Toast.LENGTH_LONG).show();
             
             // 如果是房主且连接成功，延迟启动游戏
             if (isHost && isMultiplayer) {
-                showMultiplayerGamePrompt();
+                showMultiplayerGamePrompt(domainId);
                 // 延迟3秒后自动开始游戏
                 new Handler().postDelayed(() -> {
                     if (!gameStarted) {
@@ -96,7 +97,7 @@ public class MainActivity extends AppCompatActivity implements GameContract.View
                     }
                 }, 3000);
             } else if (isMultiplayer) {
-                showMultiplayerGamePrompt();
+                showMultiplayerGamePrompt(domainId);
                 // 客户端等待连接成功后自动开始
             }
             // 如果isMultiplayer被设为false，说明连接失败，已经在restoreNetworkConnection中处理了
@@ -202,9 +203,9 @@ public class MainActivity extends AppCompatActivity implements GameContract.View
         gameStarted = false;
     }
     
-    private void showMultiplayerGamePrompt() {
+    private void showMultiplayerGamePrompt(int domainId) {
         String roleText = isHost ? "房主" : "玩家";
-        tvGameStatus.setText("多人定时积分赛 - 5分钟挑战\n" + roleText + " - 房间: " + roomId + "\n游戏即将开始...");
+        tvGameStatus.setText("多人定时积分赛 - 5分钟挑战\n" + roleText + " - 房间: " + roomId + "\nDDS域ID: " + domainId + "\n游戏即将开始...");
         tvGameStatus.setVisibility(View.VISIBLE);
         tvScore.setText("Score: 0");
         tvLeaderboard.setText("等待开始...");
