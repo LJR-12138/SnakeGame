@@ -90,12 +90,11 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
         btnCopyRoomId.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // 复制房间信息到剪贴板（仅显示房间号给用户）
-                String roomInfo = "房间号: " + roomId + "\nIP地址: " + (serverIP != null ? serverIP : "未知");
+                // 只复制房间号给用户，IP地址自动发现
                 android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-                android.content.ClipData clip = android.content.ClipData.newPlainText("房间信息", roomInfo);
+                android.content.ClipData clip = android.content.ClipData.newPlainText("房间号", roomId);
                 clipboard.setPrimaryClip(clip);
-                Toast.makeText(RoomActivity.this, "房间信息已复制", Toast.LENGTH_SHORT).show();
+                Toast.makeText(RoomActivity.this, "房间号已复制: " + roomId, Toast.LENGTH_SHORT).show();
             }
         });
         
@@ -129,15 +128,18 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
     private void createRoom() {
         try {
             roomServer = new RoomServer(this);
-            roomServer.startServer(); // 现在这个方法已经是异步的了
-            
-            // 显示正在创建房间
-            Toast.makeText(this, "正在创建房间...", Toast.LENGTH_SHORT).show();
             
             // 房间ID使用6位随机数字
             roomId = generateRoomId();
             // 为这个房间随机生成一个DDS域号
             domainId = generateDomainId();
+            // 设置房间号到服务器，用于广播响应
+            roomServer.setRoomId(roomId);
+            
+            roomServer.startServer(); // 现在这个方法已经是异步的了
+            
+            // 显示正在创建房间
+            Toast.makeText(this, "正在创建房间...", Toast.LENGTH_SHORT).show();
             
             // 获取服务器IP地址用于网络连接
             serverIP = roomServer.getLocalIPAddress();
@@ -151,7 +153,7 @@ public class RoomActivity extends AppCompatActivity implements RoomServer.RoomSe
             updateUI();
             
             tvRoomId.setText(roomId);
-            Toast.makeText(this, "房间创建成功！房间号: " + roomId + " (域号: " + domainId + ")", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "房间创建成功！\n房间号: " + roomId + "\n(请分享房间号给其他玩家)", Toast.LENGTH_LONG).show();
             
         } catch (Exception e) {
             Toast.makeText(this, "创建房间异常: " + e.getMessage(), Toast.LENGTH_LONG).show();

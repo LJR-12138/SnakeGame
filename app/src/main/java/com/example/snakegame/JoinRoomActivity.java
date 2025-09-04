@@ -3,11 +3,14 @@ package com.example.snakegame;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import java.net.*;
+import java.io.*;
 
 public class JoinRoomActivity extends AppCompatActivity {
 
@@ -75,64 +78,93 @@ public class JoinRoomActivity extends AppCompatActivity {
     private void searchForRoom(String roomId, AlertDialog dialog) {
         Toast.makeText(this, "正在搜索房间...", Toast.LENGTH_SHORT).show();
         
-        // 简单实现：暂时让用户手动输入IP地址
-        // 这里可以后续扩展为UDP广播搜索
-        showIPInputDialog(roomId, dialog);
+        // 使用UDP广播搜索局域网内的房间
+        searchRoomByBroadcast(roomId, dialog);
     }
     
-    private void showIPInputDialog(String roomId, AlertDialog parentDialog) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("输入房主IP地址");
-        builder.setMessage("房间号: " + roomId + "\n请向房主询问其设备的IP地址");
-        
-        EditText etIP = new EditText(this);
-        etIP.setHint("例如: 192.168.1.100");
-        builder.setView(etIP);
-        
-        builder.setPositiveButton("连接", (d, which) -> {
-            String serverIP = etIP.getText().toString().trim();
-            if (serverIP.isEmpty()) {
-                Toast.makeText(this, "请输入IP地址", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            
-            if (!isValidIPAddress(serverIP)) {
-                Toast.makeText(this, "请输入有效的IP地址", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            
-            // 进入房间
-            Intent intent = new Intent(JoinRoomActivity.this, RoomActivity.class);
-            intent.putExtra("isHost", false);
-            intent.putExtra("roomId", roomId);
-            intent.putExtra("serverIP", serverIP);
-            startActivity(intent);
-            
-            parentDialog.dismiss();
-            d.dismiss();
-            finish();
-        });
-        
-        builder.setNegativeButton("取消", (d, which) -> d.dismiss());
-        builder.show();
-    }
-    
-    private boolean isValidIPAddress(String ip) {
-        String[] parts = ip.split("\\.");
-        if (parts.length != 4) {
-            return false;
-        }
-        
-        try {
-            for (String part : parts) {
-                int num = Integer.parseInt(part);
-                if (num < 0 || num > 255) {
-                    return false;
+    private void searchRoomByBroadcast(String roomId, AlertDialog dialog) {
+        new Thread(() -> {
+            DatagramSocket socket = null;
+            try {
+                // 发送UDP广播搜索房间
+                socket = new DatagramSocket();
+                socket.setBroadcast(true);
+                socket.setSoTimeout(5000); // 5秒超时
+                
+                String searchMessage = "SEARCH_ROOM:" + roomId;
+                byte[] buffer = searchMessage.getBytes();
+                
+                // 尝试多个广播地址
+                String[] broadcastAddresses = {
+                    "255.255.255.255",
+                    "192.168.1.255",
+                    "192.168.0.255",
+                    "10.0.0.255"
+                };
+                
+                boolean found = false;
+                
+                for (String broadcastAddr : broadcastAddresses) {
+                    try {
+                        InetAddress broadcastAddress = InetAddress.getByName(broadcastAddr);
+                        DatagramPacket packet = new DatagramPacket(buffer, buffer.length, broadcastAddress, 8889);
+                        
+                        socket.send(packet);
+                        Log.d("JoinRoomActivity", "发送广播搜索到 " + broadcastAddr + ": " + searchMessage);
+                        
+                        // 等待响应
+                        byte[] responseBuffer = new byte[1024];
+                        DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
+                        
+                        try {
+                            socket.receive(responsePacket);
+                            
+                            String response = new String(responsePacket.getData(), 0, responsePacket.getLength());
+                            Log.d("JoinRoomActivity", "收到响应: " + response);
+                            
+                            if (response.startsWith("ROOM_FOUND:")) {
+                                String serverIP = responsePacket.getAddress().getHostAddress();
+                                found = true;
+                                
+                                runOnUiThread(() -> {
+                                    Toast.makeText(this, "找到房间，正在连接...", Toast.LENGTH_SHORT).show();
+                                    
+                                    // 直接加入房间
+                                    Intent intent = new Intent(JoinRoomActivity.this, RoomActivity.class);
+                                    intent.putExtra("isHost", false);
+                                    intent.putExtra("roomId", roomId);
+                                    intent.putExtra("serverIP", serverIP);
+                                    startActivity(intent);
+                                    
+                                    dialog.dismiss();
+                                    finish();
+                                });
+                                break;
+                            }
+                        } catch (SocketTimeoutException e) {
+                            // 继续尝试下一个广播地址
+                            Log.d("JoinRoomActivity", "广播地址 " + broadcastAddr + " 超时");
+                        }
+                    } catch (Exception e) {
+                        Log.e("JoinRoomActivity", "广播到 " + broadcastAddr + " 失败: " + e.getMessage());
+                    }
+                }
+                
+                if (!found) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, "未找到房间 " + roomId + "，请确认房间号是否正确", Toast.LENGTH_LONG).show();
+                    });
+                }
+                
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "搜索房间失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            } finally {
+                if (socket != null && !socket.isClosed()) {
+                    socket.close();
                 }
             }
-            return true;
-        } catch (NumberFormatException e) {
-            return false;
-        }
+        }).start();
     }
 }

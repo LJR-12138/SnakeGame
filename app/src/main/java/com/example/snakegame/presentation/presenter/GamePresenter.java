@@ -536,6 +536,9 @@ private void ensureFoodInViewport() {
                 );
                 deadPlayerFoods.add(deadFood);
                 
+                // 在设置死亡前先掉落食物
+                dropFoodFromDeadSnake(mySnake);
+                
                 // 将玩家标记为死亡，分数固定，进入旁观模式
                 mySnake.setAlive(false);
                 
@@ -604,6 +607,7 @@ private void ensureFoodInViewport() {
         }
         
         updateBotSnakes();
+        checkDeadSnakesForFoodDrop(); // 检查死亡的蛇并掉落食物
         updateLeaderboard();
         
         // 确保有足够的食物，但不要频繁重新生成
@@ -700,9 +704,23 @@ private void ensureFoodInViewport() {
                     if (head != null) {
                         if (head.getX() < 0 || head.getX() >= gameWorld.getGridSize() || 
                             head.getY() < 0 || head.getY() >= gameWorld.getGridSize()) {
+                            // 在设置死亡前先掉落食物
+                            dropFoodFromDeadSnake(botSnake);
                             botSnake.setAlive(false);
                         }
                     }
+                }
+            }
+        }
+    }
+    
+    // 检查死亡的蛇并为它们掉落食物
+    private void checkDeadSnakesForFoodDrop() {
+        if (gameWorld.getOtherSnakes() != null) {
+            for (Snake snake : gameWorld.getOtherSnakes()) {
+                if (!snake.isAlive() && !snake.isFoodDropped()) {
+                    // 为刚死亡且还没掉落食物的蛇掉落食物
+                    dropFoodFromDeadSnake(snake);
                 }
             }
         }
@@ -741,6 +759,8 @@ private void checkBoundaryCollision() {
             if (isTimedScoreMode) {
                 handlePlayerDeathInTimedMode();
             } else {
+                // 在设置死亡前先掉落食物
+                dropFoodFromDeadSnake(gameWorld.getMySnake());
                 gameWorld.getMySnake().setAlive(false);
                 endGame();
             }
@@ -762,6 +782,8 @@ private void checkBoundaryCollision() {
                             if (isTimedScoreMode) {
                                 handlePlayerDeathInTimedMode();
                             } else {
+                                // 在设置死亡前先掉落食物
+                                dropFoodFromDeadSnake(gameWorld.getMySnake());
                                 gameWorld.getMySnake().setAlive(false);
                                 endGame();
                             }
@@ -781,6 +803,8 @@ private void checkBoundaryCollision() {
             for (int i = 1; i < body.size(); i++) { // 跳过头部
                 Point bodyPoint = body.get(i);
                 if (head.getX() == bodyPoint.getX() && head.getY() == bodyPoint.getY()) {
+                    // 在设置死亡前先掉落食物
+                    dropFoodFromDeadSnake(gameWorld.getMySnake());
                     gameWorld.getMySnake().setAlive(false);
                     endGame();
                     break;
@@ -867,6 +891,47 @@ private void addRandomFood() {
         
         gameWorld.getFoods().add(food);
     }
+}
+
+// 蛇死亡掉落食物的方法
+private void dropFoodFromDeadSnake(Snake deadSnake) {
+    if (deadSnake == null || deadSnake.getBodyPoints() == null || deadSnake.getBodyPoints().isEmpty() || deadSnake.isFoodDropped()) {
+        return;
+    }
+    
+    List<Point> bodyPoints = deadSnake.getBodyPoints();
+    List<Food> foods = gameWorld.getFoods();
+    if (foods == null) {
+        foods = new ArrayList<>();
+        gameWorld.setFoods(foods);
+    }
+    
+    // 每隔3格生成一个APPLE食物
+    for (int i = 0; i < bodyPoints.size(); i += 3) {
+        Point bodyPoint = bodyPoints.get(i);
+        
+        // 创建APPLE类型的食物
+        Food droppedFood = new Food();
+        droppedFood.setPosition(new Point(bodyPoint.getX(), bodyPoint.getY()));
+        droppedFood.setType(Food.FoodType.APPLE);
+        
+        // 检查该位置是否已经有食物，如果没有才添加
+        boolean positionOccupied = false;
+        for (Food existingFood : foods) {
+            if (existingFood.getPosition().getX() == bodyPoint.getX() && 
+                existingFood.getPosition().getY() == bodyPoint.getY()) {
+                positionOccupied = true;
+                break;
+            }
+        }
+        
+        if (!positionOccupied) {
+            foods.add(droppedFood);
+        }
+    }
+    
+    // 标记已经掉落过食物，避免重复掉落
+    deadSnake.setFoodDropped(true);
 }
 
 // 死亡玩家食物类

@@ -14,10 +14,12 @@ public class RoomServer {
     private static final int PORT = 8888;
     
     private ServerSocket serverSocket;
+    private DatagramSocket broadcastSocket; // UDP广播监听socket
     private boolean isRunning = false;
     private Map<String, ClientHandler> connectedClients;
     private RoomServerListener listener;
     private Handler mainHandler;
+    private String currentRoomId; // 当前房间号
     
     public interface RoomServerListener {
         void onPlayerJoined(String playerId, String nickname);
@@ -30,6 +32,11 @@ public class RoomServer {
         this.listener = listener;
         this.connectedClients = new ConcurrentHashMap<>();
         this.mainHandler = new Handler(Looper.getMainLooper());
+    }
+    
+    // 设置房间号
+    public void setRoomId(String roomId) {
+        this.currentRoomId = roomId;
     }
     
     public void startServer() {
@@ -78,7 +85,10 @@ public class RoomServer {
                 isRunning = true;
                 
                 Log.d(TAG, "服务器启动成功，端口: " + actualPort);
-                Log.d(TAG, "房间ID (IP地址): " + getLocalIPAddress());
+                Log.d(TAG, "房间ID: " + currentRoomId);
+                
+                // 启动UDP广播监听
+                startBroadcastListener();
                 
                 while (isRunning && !serverSocket.isClosed()) {
                     try {
@@ -118,6 +128,12 @@ public class RoomServer {
             }
         }
         connectedClients.clear();
+        
+        // 关闭UDP广播监听
+        if (broadcastSocket != null && !broadcastSocket.isClosed()) {
+            broadcastSocket.close();
+            broadcastSocket = null;
+        }
         
         // 关闭服务器
         if (serverSocket != null && !serverSocket.isClosed()) {
@@ -160,6 +176,65 @@ public class RoomServer {
             Log.e(TAG, "获取IP地址失败", ex);
         }
         return "未知";
+    }
+    
+    // 启动UDP广播监听
+    private void startBroadcastListener() {
+        new Thread(() -> {
+            try {
+                broadcastSocket = new DatagramSocket(8889);
+                Log.d(TAG, "UDP广播监听启动，端口: 8889，房间号: " + currentRoomId);
+                
+                byte[] buffer = new byte[1024];
+                
+                while (isRunning && !broadcastSocket.isClosed()) {
+                    try {
+                        DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+                        broadcastSocket.receive(packet);
+                        
+                        String message = new String(packet.getData(), 0, packet.getLength());
+                        Log.d(TAG, "收到广播搜索: " + message);
+                        
+                        if (message.startsWith("SEARCH_ROOM:")) {
+                            String searchRoomId = message.substring("SEARCH_ROOM:".length());
+                            Log.d(TAG, "搜索房间号: " + searchRoomId + ", 当前房间号: " + currentRoomId);
+                            
+                            // 检查是否匹配当前房间号
+                            if (currentRoomId != null && currentRoomId.equals(searchRoomId)) {
+                                // 响应搜索请求
+                                String response = "ROOM_FOUND:" + currentRoomId;
+                                byte[] responseData = response.getBytes();
+                                
+                                DatagramPacket responsePacket = new DatagramPacket(
+                                    responseData, 
+                                    responseData.length, 
+                                    packet.getAddress(), 
+                                    packet.getPort()
+                                );
+                                
+                                broadcastSocket.send(responsePacket);
+                                Log.d(TAG, "响应房间搜索: " + searchRoomId + " 到 " + packet.getAddress().getHostAddress());
+                            } else {
+                                Log.d(TAG, "房间号不匹配，不响应搜索");
+                            }
+                        }
+                        
+                    } catch (IOException e) {
+                        if (isRunning) {
+                            Log.e(TAG, "UDP广播监听失败", e);
+                        }
+                    }
+                }
+                
+            } catch (SocketException e) {
+                Log.e(TAG, "启动UDP广播监听失败", e);
+            } finally {
+                if (broadcastSocket != null && !broadcastSocket.isClosed()) {
+                    broadcastSocket.close();
+                }
+                Log.d(TAG, "UDP广播监听已停止");
+            }
+        }).start();
     }
     
     private void notifyMainThread(Runnable runnable) {

@@ -15,6 +15,7 @@ public class Snake {
     private int growthPending = 0; // 待增长的节数
         // 在Snake类中添加这个字段和方法
     private boolean justAte = false;
+    private boolean foodDropped = false; // 标记是否已经掉落过食物
     
     public boolean isJustAte() {
         return justAte;
@@ -129,5 +130,14 @@ public class Snake {
     // 蛇身体增长指定数量
     public void growByAmount(int amount) {
         this.growthPending += amount;
+    }
+    
+    // 食物掉落相关方法
+    public boolean isFoodDropped() {
+        return foodDropped;
+    }
+    
+    public void setFoodDropped(boolean foodDropped) {
+        this.foodDropped = foodDropped;
     }
 }
